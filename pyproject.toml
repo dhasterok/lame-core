@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "lame-core"
+version = "0.1.0"
+description = "Core widgets, theming, and utilities for LaME and related tools"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6",
+    "pandas",
+    "numpy",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
