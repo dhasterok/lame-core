@@ -923,7 +923,7 @@ class ToggleSwitch(QWidget):
     """
     stateChanged = pyqtSignal(bool)  # Signal emitted when the state changes
 
-    def __init__(self, parent=None, height=24, duration=100, fg_color="#f0f0f0", bg_left_color="#ffffff", bg_right_color="#478ae4"):
+    def __init__(self, parent=None, height=24, duration=100, fg_color="#f0f0f0", bg_left_color="#a8b078", bg_right_color="#478ae4"):
         super().__init__(parent)
         self._height = height
         self._width = height * 2
