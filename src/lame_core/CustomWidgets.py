@@ -160,10 +160,14 @@ class CustomLineEdit(QLineEdit):
         _description_, by default 1e4
     toward : int, optional
         _description_, by default None
+    fixed_point : bool, optional
+        If ``True``, display exactly ``precision`` digits after the decimal point
+        (``f"{value:.{precision}f}"``) instead of ``precision`` significant digits,
+        by default False
     validator : QValidator, optional
         Provide a validator to automatically text inputs for appropriate type and
         ranges, by default QDoubleValidator
-    """        
+    """
     def __init__(
             self,
             parent=None,
@@ -171,6 +175,7 @@ class CustomLineEdit(QLineEdit):
             precision=4,
             threshold=1e4,
             toward=None,
+            fixed_point=False,
             validator=QDoubleValidator()
     ):
         super().__init__(parent)
@@ -178,11 +183,13 @@ class CustomLineEdit(QLineEdit):
         self._precision = precision
         self._threshold = threshold
         self._toward = toward
+        self._fixed_point = fixed_point
         self._lower_bound = None
         self._upper_bound = None
         self.textChanged.connect(self._update_value_from_text)
         self.setValidator(validator)
         self.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+        self._update_text_from_value()
 
     @property
     def value(self):
@@ -227,8 +234,8 @@ class CustomLineEdit(QLineEdit):
             New number of significant digits to display.
         """
         self._precision = new_precision
-        self._update_text_from_value
-    
+        self._update_text_from_value()
+
     @property
     def threshold(self):
         """
@@ -247,7 +254,7 @@ class CustomLineEdit(QLineEdit):
             Value above which to switch to scientific notation.
         """
         self._threshold = new_threshold
-        self._update_text_from_value
+        self._update_text_from_value()
 
     @property
     def toward(self):
@@ -271,7 +278,7 @@ class CustomLineEdit(QLineEdit):
             Rounding mode to apply in formatting.
         """
         self._toward = val
-        self._update_text_from_value
+        self._update_text_from_value()
 
     def set_bounds(self, lower=None, upper=None):
         """Set optional lower and upper bounds for the value."""
@@ -288,9 +295,10 @@ class CustomLineEdit(QLineEdit):
             self.setText('')
         elif self._precision is None:
             self.setText(str(self._value))
+        elif self._fixed_point:
+            self.setText(f"{self._value:.{self._precision}f}")
         else:
             self.setText(fmt.dynamic_format(self._value, threshold=self._threshold, order=self._precision, toward=self._toward))
-            #self.setText(f"{self._value:.{self._precision}f}")
 
     def _update_value_from_text(self):
         """
@@ -1319,6 +1327,13 @@ class CustomSlider(QWidget):
         Increment between values (default is 1).
     initial_value : float, optional
         Initial slider value (default is 50).
+    precision : int, optional
+        Number of digits used to format the label (default is 1); interpreted as
+        significant digits unless ``fixed_point`` is ``True``.
+    fixed_point : bool, optional
+        If ``True``, the label always shows exactly ``precision`` digits after the
+        decimal point, rather than ``precision`` significant digits -- appropriate
+        for fractional-step sliders (default is False).
     parent : QWidget, optional
         Parent widget (default is None).
 
@@ -1338,7 +1353,7 @@ class CustomSlider(QWidget):
     sliderReleased = pyqtSignal(int)
     sliderPressed = pyqtSignal(int)
 
-    def __init__(self, min_value=0, max_value=100, step=1, initial_value=50, precision=1, orientation="horizontal", label_position="low", parent=None):
+    def __init__(self, min_value=0, max_value=100, step=1, initial_value=50, precision=1, fixed_point=False, orientation="horizontal", label_position="low", parent=None):
         super().__init__(parent)
         
         self._min_value = min_value
@@ -1356,7 +1371,7 @@ class CustomSlider(QWidget):
             raise ValueError("Orientation must be 'horizontal' or 'vertical'.")
         
         # Create label to display slider value
-        self.label = CustomLineEdit(self,value=initial_value, precision=precision)
+        self.label = CustomLineEdit(self,value=initial_value, precision=precision, fixed_point=fixed_point)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label.setMaximumWidth(30)
         self.label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
@@ -1459,6 +1474,9 @@ class CustomSlider(QWidget):
         clamped_value = max(min(current_value, self.max_value), self.min_value)
         self.setValue(clamped_value)
         self.slider.blockSignals(False)
+        # setValue() ran with signals blocked, so update_label (normally driven by
+        # slider.valueChanged) never fired -- sync the label explicitly.
+        self.update_label(self.slider.value())
 
     def handle_label_change(self):
         """
