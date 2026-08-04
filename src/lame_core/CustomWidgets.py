@@ -562,8 +562,13 @@ class StandardItem(QStandardItem):
         fontsize, by default ``10``
     set_bold : bool, optional
         Bold tree font when ``True``, by default ``False``
-    """    
-    def __init__(self, txt='', font_size=10, set_bold=False, data=None):
+    checkable : bool, optional
+        Adds a checkbox to the item when ``True``, by default ``False``
+    checked : bool, optional
+        Initial check state, only meaningful when `checkable` is ``True``,
+        by default ``False``
+    """
+    def __init__(self, txt='', font_size=10, set_bold=False, data=None, checkable=False, checked=False):
         super().__init__()
 
         # Set item font
@@ -576,6 +581,9 @@ class StandardItem(QStandardItem):
         self.setFont(fnt)
         if data is not None:
             self.setData(data)
+        if checkable:
+            self.setCheckable(True)
+            self.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
 
 class CustomTreeView(QTreeView):
     """
@@ -646,7 +654,7 @@ class CustomTreeView(QTreeView):
         parent_item.appendRow(branch_item)
         return branch_item
     
-    def add_leaf(self, branch_item, leaf_name, data=None):
+    def add_leaf(self, branch_item, leaf_name, data=None, checkable=False, checked=False):
         """
         Add a new leaf to a branch.
 
@@ -658,13 +666,18 @@ class CustomTreeView(QTreeView):
             The name of the new leaf.
         data : any, optional
             Optional data to associate with the leaf.
+        checkable : bool, optional
+            Adds a checkbox to the leaf when ``True``, by default ``False``.
+        checked : bool, optional
+            Initial check state, only meaningful when `checkable` is ``True``,
+            by default ``False``.
 
         Returns
         -------
         QStandardItem
             The created leaf item.
         """
-        leaf_item = StandardItem(leaf_name, 10, False, data)
+        leaf_item = StandardItem(leaf_name, 10, False, data, checkable=checkable, checked=checked)
         branch_item.appendRow(leaf_item)
         return leaf_item
 
