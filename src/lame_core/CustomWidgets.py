@@ -2,7 +2,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import ( 
         QWidget, QLineEdit, QTableWidget, QComboBox, QPushButton, QCheckBox, QWidget, QTreeView,
         QMenu, QDockWidget, QHeaderView, QToolButton, QSlider, QVBoxLayout, QHBoxLayout, QLabel,
-        QSizePolicy, QScrollArea, QLayout, QToolBox
+        QSizePolicy, QScrollArea, QLayout, QToolBox, QSpinBox
     )
 from PyQt6.QtGui import (
     QStandardItem, QStandardItemModel, QFont, QDoubleValidator, QIcon, QCursor, QPainter,
@@ -859,6 +859,128 @@ class CustomComboBox(QComboBox):
         self.setEnabled(active)
 
 
+class SpinComboBox(QWidget):
+    """
+    A QSpinBox coupled to a QComboBox, so the spinbox's value always matches
+    the combobox's selected index.
+
+    Changing either widget updates the other: stepping the spinbox moves
+    the combobox selection, and picking a combobox item moves the spinbox
+    to the matching index.
+
+    Parameters
+    ----------
+    items : list of str, optional
+        Initial items to populate the combobox with, by default None.
+    parent : QWidget, optional
+        Parent widget, by default None.
+
+    Signals
+    -------
+    currentIndexChanged(int)
+        Emitted with the new index whenever the spinbox or the combobox
+        changes, regardless of which one triggered the change.
+    currentTextChanged(str)
+        Emitted with the new combobox text whenever the selection changes.
+
+    Attributes
+    ----------
+    spin_box : QSpinBox
+        The wrapped spin box.
+    combo_box : QComboBox
+        The wrapped combo box.
+    """
+    currentIndexChanged = pyqtSignal(int)
+    currentTextChanged = pyqtSignal(str)
+
+    def __init__(self, items=None, parent=None):
+        super().__init__(parent)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.spin_box = QSpinBox(self)
+        self.combo_box = QComboBox(self)
+
+        if items:
+            self.combo_box.addItems(items)
+        self._update_spinbox_range()
+
+        self.spin_box.valueChanged.connect(self._sync_combobox_from_spinbox)
+        self.combo_box.currentIndexChanged.connect(self._sync_spinbox_from_combobox)
+        self.combo_box.currentTextChanged.connect(self.currentTextChanged.emit)
+
+        layout.addWidget(self.combo_box)
+        layout.addWidget(self.spin_box)
+
+    def _update_spinbox_range(self):
+        """Resize the spinbox range to match the combobox's item count."""
+        count = self.combo_box.count()
+        self.spin_box.blockSignals(True)
+        self.spin_box.setMinimum(0)
+        self.spin_box.setMaximum(max(count - 1, 0))
+        self.spin_box.blockSignals(False)
+
+    def _sync_combobox_from_spinbox(self, index):
+        """Move the combobox selection to match a new spinbox value."""
+        if self.combo_box.currentIndex() != index:
+            self.combo_box.blockSignals(True)
+            self.combo_box.setCurrentIndex(index)
+            self.combo_box.blockSignals(False)
+        self.currentIndexChanged.emit(index)
+
+    def _sync_spinbox_from_combobox(self, index):
+        """Move the spinbox value to match a new combobox selection."""
+        if self.spin_box.value() != index:
+            self.spin_box.blockSignals(True)
+            self.spin_box.setValue(index)
+            self.spin_box.blockSignals(False)
+        self.currentIndexChanged.emit(index)
+
+    def setItems(self, items):
+        """Replace the combobox contents, clamping the current index to the new range.
+
+        Parameters
+        ----------
+        items : list of str
+            New items for the combobox.
+        """
+        current = self.currentIndex()
+        self.combo_box.blockSignals(True)
+        self.combo_box.clear()
+        self.combo_box.addItems(items)
+        self.combo_box.blockSignals(False)
+        self._update_spinbox_range()
+        self.setCurrentIndex(max(0, min(current, self.combo_box.count() - 1)))
+
+    def addItem(self, text):
+        """Append a single item to the combobox and grow the spinbox range."""
+        self.combo_box.addItem(text)
+        self._update_spinbox_range()
+
+    def addItems(self, texts):
+        """Append multiple items to the combobox and grow the spinbox range."""
+        self.combo_box.addItems(texts)
+        self._update_spinbox_range()
+
+    def allItems(self):
+        """Return a list of all item texts in the combobox."""
+        return [self.combo_box.itemText(i) for i in range(self.combo_box.count())]
+
+    def currentIndex(self) -> int:
+        """Return the current combobox index."""
+        return self.combo_box.currentIndex()
+
+    def setCurrentIndex(self, index: int):
+        """Set the current combobox index."""
+        self.combo_box.setCurrentIndex(index)
+
+    def currentText(self) -> str:
+        """Return the currently selected combobox text."""
+        return self.combo_box.currentText()
+
+
 class CustomDockWidget(QDockWidget):
     """
     A custom QDockWidget that hides instead of closing when the user clicks the close button.
@@ -1132,9 +1254,13 @@ class CustomAction(QAction):
         light_icon_checked: str | None=None,
         dark_icon_unchecked: str | None=None,
         dark_icon_checked: str | None=None,
+        icon_text: str | None=None,
         parent=None,
     ):
         super().__init__(text, parent)
+
+        if icon_text is not None and icon_text != text:
+            self.setIconText(icon_text)
 
         def load_icon(filename: str|None, fallback: QIcon=None) -> QIcon:
             """Sets up the QIcon for a given light/dark, checked/unchecked state.

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I{} sh -c 'echo \"--- {} ---\"; cat {}')",
+      "Bash(PYTHONPATH=src QT_QPA_PLATFORM=offscreen python -m pytest tests/test_spin_combo_box.py -v)",
+      "Bash(python -c \"import PyQt6; print\\('PyQt6 ok'\\)\")",
+      "Bash(pip install *)",
+      "Bash(PYTHONPATH=src QT_QPA_PLATFORM=offscreen python -c ' *)",
+      "Bash(PYTHONPATH=src python -c ' *)",
+      "Bash(export QT_QPA_PLATFORM_PLUGIN_PATH=\"/opt/homebrew/Caskroom/miniforge/base/lib/python3.12/site-packages/PyQt6/Qt6/plugins/platforms\")",
+      "Bash(export QT_QPA_PLATFORM=offscreen)",
+      "Bash(PYTHONPATH=src python -m pytest tests/ -v)"
+    ]
+  }
+}

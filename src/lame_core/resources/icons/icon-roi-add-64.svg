@@ -8,11 +8,11 @@
         stroke: #fff;
       }
 
-      .st0, .st1, .st2, .st3 {
+      .st0, .st1, .st2 {
         stroke-miterlimit: 10;
       }
 
-      .st0, .st3 {
+      .st0, .st2 {
         stroke-width: 3px;
       }
 
@@ -22,25 +22,12 @@
       }
 
       .st2 {
-        fill: #fff;
-        stroke-width: 2px;
-      }
-
-      .st2, .st3 {
+        fill: #eeea7b;
         stroke: #414042;
-      }
-
-      .st3 {
-        fill: #7bb7e4;
       }
     </style>
   </defs>
-  <polygon class="st3" points="36.2 6.8 5.5 36.7 17.9 59.3 56.2 48.8 59.3 18.8 36.2 6.8"/>
-  <circle class="st2" cx="36.3" cy="7" r="3.4"/>
-  <circle class="st2" cx="59.3" cy="19" r="3.4"/>
-  <circle class="st2" cx="55.5" cy="48.9" r="3.4"/>
-  <circle class="st2" cx="17.3" cy="59.3" r="3.4"/>
-  <circle class="st2" cx="6" cy="36.5" r="3.4"/>
+  <polygon class="st2" points="36.2 6.8 5.5 36.7 17.9 59.3 56.2 48.8 59.3 18.8 36.2 6.8"/>
   <g>
     <circle class="st1" cx="47" cy="48.3" r="12.6"/>
     <line class="st0" x1="47" y1="41.4" x2="47" y2="55.1"/>

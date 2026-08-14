@@ -35,7 +35,7 @@ def setup(
 
 
 def load_stylesheet(filename: str) -> str:
-    replacements = {"{icon_path}": str(ICONPATH.as_posix())}
+    replacements = {"{ICONPATH}": str(ICONPATH.as_posix())}
     with open(STYLE_PATH / filename, "r", encoding="utf-8") as fh:
         stylesheet = fh.read()
     for key, value in replacements.items():
