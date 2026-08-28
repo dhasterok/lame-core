@@ -12,6 +12,7 @@
 
    ColorManager
    CustomWidgets
+   PagedToolBar
    SearchTool
    UITheme
    config

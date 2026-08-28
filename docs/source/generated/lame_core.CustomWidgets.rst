@@ -20,7 +20,9 @@ lame\_core.CustomWidgets
       CustomToolButton
       CustomTreeView
       DoubleSlider
+      ListFilterWidget
       RotatedHeaderView
+      SpinComboBox
       StandardItem
       ToggleSwitch
       VisibilityWidget

@@ -1,8 +1,8 @@
 from pathlib import Path
-from PyQt6.QtWidgets import ( 
+from PyQt6.QtWidgets import (
         QWidget, QLineEdit, QTableWidget, QComboBox, QPushButton, QCheckBox, QWidget, QTreeView,
         QMenu, QDockWidget, QHeaderView, QToolButton, QSlider, QVBoxLayout, QHBoxLayout, QLabel,
-        QSizePolicy, QScrollArea, QLayout, QToolBox, QSpinBox
+        QSizePolicy, QScrollArea, QLayout, QToolBox, QSpinBox, QListWidget
     )
 from PyQt6.QtGui import (
     QStandardItem, QStandardItemModel, QFont, QDoubleValidator, QIcon, QCursor, QPainter,
@@ -1534,9 +1534,16 @@ class CustomSlider(QWidget):
         self.slider.valueChanged.connect(self.valueChanged.emit)  # Emit custom signal
         self.slider.sliderMoved.connect(self.update_label)
         self.slider.sliderMoved.connect(self.sliderMoved.emit)
-        self.slider.sliderReleased.connect(self.update_label)
-        self.slider.sliderReleased.connect(self.sliderReleased.emit)
-        self.slider.sliderPressed.connect(self.sliderPressed.emit)
+        # QSlider.sliderPressed/sliderReleased are argument-less Qt signals
+        # (unlike valueChanged/sliderMoved, which carry the int position) --
+        # connecting either straight to a slot/signal that expects the value
+        # (update_label(int_value), or this widget's own pyqtSignal(int)
+        # versions' .emit) raises a TypeError the moment it actually fires,
+        # since zero args reach a callable that requires one. Wrap in a
+        # lambda that supplies the slider's current value explicitly.
+        self.slider.sliderReleased.connect(lambda: self.update_label(self.slider.value()))
+        self.slider.sliderReleased.connect(lambda: self.sliderReleased.emit(self.slider.value()))
+        self.slider.sliderPressed.connect(lambda: self.sliderPressed.emit(self.slider.value()))
         
         # Add widgets to layout
         if (label_position == "low" and orientation == "horizontal") or (label_position == "high" and orientation == "vertical"):
@@ -2144,4 +2151,68 @@ class CustomActionMenu(CustomAction):
             True if `name` is a submenu
         """
         return name in self.submenu_references
+
+
+class ListFilterWidget(QWidget):
+    """A search box that filters a target ``QListWidget``'s items live, as
+    the user types.
+
+    Case-insensitive substring match by default. Items not matching the
+    current filter text are hidden (``QListWidgetItem.setHidden``), not
+    removed -- the underlying item set/order is never disturbed, so
+    clearing the filter instantly restores the full list, and any
+    checkbox/selection state on hidden items is preserved.
+
+    Generic and self-contained: no assumptions about what the list items
+    represent, so it's reusable across projects (e.g. filtering a mineral
+    list, a field list, a file list) without any project-specific coupling.
+
+    Parameters
+    ----------
+    target : QListWidget
+        The list widget to filter.
+    placeholder : str, optional
+        Placeholder text shown in the search box, by default "Search...".
+    case_sensitive : bool, optional
+        Whether the substring match is case-sensitive, by default False.
+    parent : QWidget, optional
+        Parent widget, by default None.
+
+    Signals
+    -------
+    filterChanged(str)
+        Emitted whenever the filter text changes, after items have already
+        been shown/hidden to match.
+    """
+    filterChanged = pyqtSignal(str)
+
+    def __init__(self, target: QListWidget, placeholder="Search...", case_sensitive=False, parent=None):
+        super().__init__(parent)
+        self.target = target
+        self.case_sensitive = case_sensitive
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(placeholder)
+        self.search_input.setClearButtonEnabled(True)
+        layout.addWidget(self.search_input)
+
+        self.search_input.textChanged.connect(self._apply_filter)
+
+    def _apply_filter(self, text: str):
+        needle = text if self.case_sensitive else text.lower()
+        for i in range(self.target.count()):
+            item = self.target.item(i)
+            haystack = item.text() if self.case_sensitive else item.text().lower()
+            item.setHidden(bool(needle) and needle not in haystack)
+        self.filterChanged.emit(text)
+
+    def filter_text(self) -> str:
+        """Current filter text."""
+        return self.search_input.text()
+
+    def clear(self):
+        """Clears the filter text, unhiding every item."""
+        self.search_input.clear()
 
