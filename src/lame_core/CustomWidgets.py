@@ -1449,6 +1449,313 @@ class CustomToolButton(QToolButton):
         if icon:
             self.setIcon(icon)
 
+class _IndicatorCircle(QToolButton):
+    """Private: the circle itself. Use :class:`IndicatorLight` instead.
+
+    Implemented as a flat QToolButton that paints a solid color-filled
+    circle instead of an icon.
+
+    Statuses are looked up by key in ``status_dict``, a mapping of
+    ``{status_key: {'tip_text': str, 'color': str}}``. Calling
+    :meth:`set_status` with a key updates the circle's fill color and its
+    tooltip to match that entry.
+
+    Parameters
+    ----------
+    status_dict : dict, optional
+        Mapping of status key to ``{'tip_text', 'color'}``, by default
+        ``IndicatorLight.DEFAULT_STATUS_DICT``.
+    status : str, optional
+        Initial status key, looked up in ``status_dict``, by default None
+        -- the indicator starts unset (neutral gray, no tooltip).
+    size : int, optional
+        Diameter of the circle in pixels, by default 16.
+    parent : QWidget, optional
+        Parent widget, by default None.
+
+    Attributes
+    ----------
+    status_dict : dict
+        Current mapping of status keys to their ``{'tip_text', 'color'}`` entries.
+    status : str or None
+        The currently active status key, or None if unset.
+    """
+    DEFAULT_STATUS_DICT = {
+        'on': {'tip_text': 'On', 'color': 'green'},
+        'off': {'tip_text': 'Off', 'color': 'red'},
+    }
+
+    def __init__(self, status_dict=None, status=None, size=16, parent=None):
+        super().__init__(parent)
+
+        self.status_dict = dict(status_dict) if status_dict else dict(self.DEFAULT_STATUS_DICT)
+        self._status = None
+        self._color = QColor('lightgray')
+        self._diameter = size
+
+        self.setAutoRaise(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setStyleSheet("QToolButton { border: none; background: transparent; }")
+
+        self.set_size(size)
+
+        if status is not None:
+            self.set_status(status)
+
+    def set_size(self, size: int):
+        """Set the indicator's diameter in pixels.
+
+        Parameters
+        ----------
+        size : int
+            New diameter, in pixels.
+        """
+        self._diameter = size
+        self.setFixedSize(size, size)
+        self.update()
+
+    def add_status(self, key: str, tip_text: str, color: str):
+        """Add or update a status entry in ``status_dict``.
+
+        Parameters
+        ----------
+        key : str
+            Status key.
+        tip_text : str
+            Tooltip text shown while this status is active.
+        color : str
+            Fill color while this status is active (any value QColor accepts,
+            e.g. a name like ``'green'`` or a hex string like ``'#2ecc71'``).
+        """
+        self.status_dict[key] = {'tip_text': tip_text, 'color': color}
+        if self._status == key:
+            self.set_status(key)
+
+    def set_status(self, status: str):
+        """Set the current status, updating the fill color and tooltip.
+
+        Parameters
+        ----------
+        status : str
+            Key into ``status_dict``.
+
+        Raises
+        ------
+        KeyError
+            If ``status`` is not a key in ``status_dict``.
+        """
+        entry = self.status_dict[status]
+        self._status = status
+        color = QColor(entry.get('color', 'gray'))
+        self._color = color if color.isValid() else QColor('gray')
+        self.setToolTip(entry.get('tip_text', ''))
+        self.update()
+
+    @property
+    def status(self):
+        """str or None: The currently active status key, or None if unset."""
+        return self._status
+
+    def sizeHint(self):
+        """Return the indicator's fixed size (diameter x diameter)."""
+        return QSize(self._diameter, self._diameter)
+
+    def paintEvent(self, event):
+        """Paint a filled circle instead of the default button chrome.
+
+        Parameters
+        ----------
+        event : QEvent
+        """
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setBrush(self._color)
+            painter.setPen(Qt.PenStyle.NoPen)
+            d = min(self.width(), self.height())
+            x = (self.width() - d) // 2
+            y = (self.height() - d) // 2
+            painter.drawEllipse(x, y, d, d)
+        finally:
+            painter.end()
+
+
+class IndicatorLight(QWidget):
+    """
+    A small circular status light with an optional text label to its left,
+    right, above, or below.
+
+    The circle itself behaves as described in :class:`_IndicatorCircle`:
+    statuses are looked up by key in ``status_dict``, and :meth:`set_status`
+    updates the circle's fill color and tooltip to match. The label is
+    independent of status -- it shows fixed text you set yourself (e.g. a
+    caption like ``'CPU'``), and is left untouched by :meth:`set_status`.
+
+    Parameters
+    ----------
+    status_dict : dict, optional
+        Mapping of status key to ``{'tip_text', 'color'}``, by default
+        ``IndicatorLight.DEFAULT_STATUS_DICT``.
+    status : str, optional
+        Initial status key, looked up in ``status_dict``, by default None
+        -- the indicator starts unset (neutral gray, no tooltip).
+    size : int, optional
+        Diameter of the circle in pixels, by default 16.
+    label : str, optional
+        Caption text to display next to the light, by default None --
+        no label is shown.
+    label_position : str, optional
+        Where the label sits relative to the light: ``'left'``, ``'right'``,
+        ``'above'``, or ``'below'``. Only matters once a label is set.
+        Default ``'left'``.
+    parent : QWidget, optional
+        Parent widget, by default None.
+
+    Attributes
+    ----------
+    light : QToolButton
+        The circular indicator itself.
+    label : QLabel
+        The caption label, hidden whenever its text is empty.
+    status_dict : dict
+        Current mapping of status keys to their ``{'tip_text', 'color'}`` entries.
+    status : str or None
+        The currently active status key, or None if unset.
+    label_position : str
+        Current label placement: ``'left'``, ``'right'``, ``'above'``, or ``'below'``.
+
+    Examples
+    --------
+
+    .. code-block:: python
+
+        light = IndicatorLight()
+        light.set_status('on')
+
+        light = IndicatorLight(
+            status_dict={
+                'ready': {'tip_text': 'Ready', 'color': '#2ecc71'},
+                'busy': {'tip_text': 'Busy', 'color': '#f39c12'},
+                'error': {'tip_text': 'Error', 'color': '#e74c3c'},
+            },
+            status='ready',
+            size=12,
+            label='Worker 1',
+            label_position='right',
+        )
+    """
+    DEFAULT_STATUS_DICT = _IndicatorCircle.DEFAULT_STATUS_DICT
+
+    def __init__(self, status_dict=None, status=None, size=16, label=None, label_position='left', parent=None):
+        super().__init__(parent)
+
+        if label_position not in ('left', 'right', 'above', 'below'):
+            raise ValueError("label_position must be 'left', 'right', 'above', or 'below'.")
+
+        self.light = _IndicatorCircle(status_dict=status_dict, status=status, size=size, parent=self)
+        self.label = QLabel('', self)
+        self.label.setVisible(False)
+
+        self._label_position = label_position
+        self._rebuild_layout()
+
+        if label is not None:
+            self.set_label(label)
+
+    def _rebuild_layout(self):
+        """Recreate the layout so widget order matches ``label_position``."""
+        old_layout = self.layout()
+        if old_layout is not None:
+            while old_layout.count():
+                old_layout.takeAt(0)
+            # Reparent the now-empty layout onto a throwaway widget so Qt
+            # disposes of it -- `self` can't take a new layout while the
+            # old one is still installed.
+            QWidget().setLayout(old_layout)
+
+        if self._label_position in ('left', 'right'):
+            layout = QHBoxLayout()
+        else:
+            layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        widgets = (self.label, self.light) if self._label_position in ('left', 'above') else (self.light, self.label)
+        for w in widgets:
+            layout.addWidget(w)
+
+        self.setLayout(layout)
+
+    def set_label(self, text=None, position=None):
+        """Set the label's text and, optionally, its position.
+
+        Parameters
+        ----------
+        text : str, optional
+            Caption to display. Empty or None hides the label, by default None.
+        position : str, optional
+            One of ``'left'``, ``'right'``, ``'above'``, ``'below'``. Leaves
+            the current position unchanged if not given, by default None.
+        """
+        if position is not None:
+            self.set_label_position(position)
+        self.label.setText(text or '')
+        self.label.setVisible(bool(text))
+
+    def set_label_position(self, position: str):
+        """Move the label to a different side of the light.
+
+        Parameters
+        ----------
+        position : str
+            One of ``'left'``, ``'right'``, ``'above'``, ``'below'``.
+        """
+        if position not in ('left', 'right', 'above', 'below'):
+            raise ValueError("label_position must be 'left', 'right', 'above', or 'below'.")
+        if position == self._label_position:
+            return
+        self._label_position = position
+        self._rebuild_layout()
+
+    @property
+    def label_position(self) -> str:
+        """str: Current label placement ('left', 'right', 'above', or 'below')."""
+        return self._label_position
+
+    def set_size(self, size: int):
+        """Set the light's diameter in pixels."""
+        self.light.set_size(size)
+
+    def add_status(self, key: str, tip_text: str, color: str):
+        """Add or update a status entry in ``status_dict``. See :meth:`_IndicatorCircle.add_status`."""
+        self.light.add_status(key, tip_text, color)
+
+    def set_status(self, status: str):
+        """Set the current status, updating the light's fill color and tooltip.
+
+        Parameters
+        ----------
+        status : str
+            Key into ``status_dict``.
+
+        Raises
+        ------
+        KeyError
+            If ``status`` is not a key in ``status_dict``.
+        """
+        self.light.set_status(status)
+
+    @property
+    def status(self):
+        """str or None: The currently active status key, or None if unset."""
+        return self.light.status
+
+    @property
+    def status_dict(self):
+        """dict: Current mapping of status keys to their ``{'tip_text', 'color'}`` entries."""
+        return self.light.status_dict
+
 class CustomSlider(QWidget):
     """
     A custom slider widget that combines a horizontal QSlider and a QLabel.
