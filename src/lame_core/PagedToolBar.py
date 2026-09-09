@@ -16,9 +16,18 @@ class PagedToolBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        # Enforces the "fixed, bounded footprint" from the docstring above
+        # even when this widget is embedded directly in a plain layout
+        # rather than wrapped in an actual QToolBar -- a QToolBar's own
+        # layout constrains its perpendicular size for free, but a bare
+        # QWidget defaults to (Preferred, Preferred), which lets a
+        # container's QVBoxLayout stretch it to share leftover vertical
+        # space with sibling widgets instead of sizing to content.
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(4, 2, 4, 2)
-        outer.setSpacing(2)
+        outer.setContentsMargins(2, 0, 2, 0)
+        outer.setSpacing(1)
 
         # Row 1: page tabs
         self.page_bar = QToolBar()
