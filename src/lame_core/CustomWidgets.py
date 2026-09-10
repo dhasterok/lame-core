@@ -15,6 +15,7 @@ import pandas as pd
 from lame_core.ColorManager import is_valid_hex_color
 from lame_core.UITheme import default_font, ThemeManager
 from lame_core.config import ICONPATH
+from lame_core.applog import log
 
 class VisibilityWidget(QWidget):
     visibilityChanged = pyqtSignal(bool)  # True = shown, False = hidden
@@ -778,7 +779,7 @@ class CustomTreeView(QTreeView):
         item = self.treeModel.itemFromIndex(index)
         item_path = self.get_item_path(item)
         leaf_data = self.get_leaf_data(item)
-        print(f"Double-clicked on: {item_path}, Data: {leaf_data}")
+        log(f"Double-clicked on: {item_path}, Data: {leaf_data}", prefix="UI")
 
     def clear_tree(self):
         """
@@ -787,7 +788,7 @@ class CustomTreeView(QTreeView):
         try:
             self.treeModel.clear()
         except Exception as e:
-            print(f"Error while clearing model: {e}")
+            log(f"Error while clearing model: {e}", prefix="Error")
 
 class CustomComboBox(QComboBox):
     """
@@ -1282,7 +1283,7 @@ class CustomAction(QAction):
                 if path.exists():
                     return QIcon(str(path))
                 else:
-                    print(f"[Warning] Icon not found: {path}")
+                    log(f"Icon not found: {path}", prefix="Warning")
             return fallback if fallback else QIcon()
 
         # Load icons
@@ -1403,7 +1404,7 @@ class CustomToolButton(QToolButton):
                 if path.exists():
                     return QIcon(str(path))
                 else:
-                    print(f"[Warning] Icon not found: {path}")
+                    log(f"Icon not found: {path}", prefix="Warning")
             return fallback if fallback else QIcon()
 
         # Load icons
