@@ -22,3 +22,5 @@ env/
 # Distribution
 *.whl
 *.tar.gz
+
+.claude/
